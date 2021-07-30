@@ -39,32 +39,22 @@ import (
 	admissionregistrationv1 "k8s.io/client-go/kubernetes/typed/admissionregistration/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+	cloudv1alpha1 "kubeform.dev/provider-ovh-api/apis/cloud/v1alpha1"
+	dbaasv1alpha1 "kubeform.dev/provider-ovh-api/apis/dbaas/v1alpha1"
+	dedicatedv1alpha1 "kubeform.dev/provider-ovh-api/apis/dedicated/v1alpha1"
 	domainv1alpha1 "kubeform.dev/provider-ovh-api/apis/domain/v1alpha1"
-	firewallv1alpha1 "kubeform.dev/provider-ovh-api/apis/firewall/v1alpha1"
-	imagev1alpha1 "kubeform.dev/provider-ovh-api/apis/image/v1alpha1"
-	instancev1alpha1 "kubeform.dev/provider-ovh-api/apis/instance/v1alpha1"
-	lkev1alpha1 "kubeform.dev/provider-ovh-api/apis/lke/v1alpha1"
-	nodebalancerv1alpha1 "kubeform.dev/provider-ovh-api/apis/nodebalancer/v1alpha1"
-	objectv1alpha1 "kubeform.dev/provider-ovh-api/apis/object/v1alpha1"
-	rdnsv1alpha1 "kubeform.dev/provider-ovh-api/apis/rdns/v1alpha1"
-	sshkeyv1alpha1 "kubeform.dev/provider-ovh-api/apis/sshkey/v1alpha1"
-	stackscriptv1alpha1 "kubeform.dev/provider-ovh-api/apis/stackscript/v1alpha1"
-	tokenv1alpha1 "kubeform.dev/provider-ovh-api/apis/token/v1alpha1"
-	userv1alpha1 "kubeform.dev/provider-ovh-api/apis/user/v1alpha1"
-	volumev1alpha1 "kubeform.dev/provider-ovh-api/apis/volume/v1alpha1"
+	ipv1alpha1 "kubeform.dev/provider-ovh-api/apis/ip/v1alpha1"
+	iploadbalancingv1alpha1 "kubeform.dev/provider-ovh-api/apis/iploadbalancing/v1alpha1"
+	mev1alpha1 "kubeform.dev/provider-ovh-api/apis/me/v1alpha1"
+	vrackv1alpha1 "kubeform.dev/provider-ovh-api/apis/vrack/v1alpha1"
+	controllerscloud "kubeform.dev/provider-ovh-controller/controllers/cloud"
+	controllersdbaas "kubeform.dev/provider-ovh-controller/controllers/dbaas"
+	controllersdedicated "kubeform.dev/provider-ovh-controller/controllers/dedicated"
 	controllersdomain "kubeform.dev/provider-ovh-controller/controllers/domain"
-	controllersfirewall "kubeform.dev/provider-ovh-controller/controllers/firewall"
-	controllersimage "kubeform.dev/provider-ovh-controller/controllers/image"
-	controllersinstance "kubeform.dev/provider-ovh-controller/controllers/instance"
-	controllerslke "kubeform.dev/provider-ovh-controller/controllers/lke"
-	controllersnodebalancer "kubeform.dev/provider-ovh-controller/controllers/nodebalancer"
-	controllersobject "kubeform.dev/provider-ovh-controller/controllers/object"
-	controllersrdns "kubeform.dev/provider-ovh-controller/controllers/rdns"
-	controllerssshkey "kubeform.dev/provider-ovh-controller/controllers/sshkey"
-	controllersstackscript "kubeform.dev/provider-ovh-controller/controllers/stackscript"
-	controllerstoken "kubeform.dev/provider-ovh-controller/controllers/token"
-	controllersuser "kubeform.dev/provider-ovh-controller/controllers/user"
-	controllersvolume "kubeform.dev/provider-ovh-controller/controllers/volume"
+	controllersip "kubeform.dev/provider-ovh-controller/controllers/ip"
+	controllersiploadbalancing "kubeform.dev/provider-ovh-controller/controllers/iploadbalancing"
+	controllersme "kubeform.dev/provider-ovh-controller/controllers/me"
+	controllersvrack "kubeform.dev/provider-ovh-controller/controllers/vrack"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -249,345 +239,777 @@ func updateVWC(vwcClient *admissionregistrationv1.AdmissionregistrationV1Client,
 func SetupManager(ctx context.Context, mgr manager.Manager, gvk schema.GroupVersionKind, auditor *auditlib.EventPublisher, watchOnlyDefault bool) error {
 	switch gvk {
 	case schema.GroupVersionKind{
-		Group:   "domain.ovh.kubeform.com",
+		Group:   "cloud.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Domain",
+		Kind:    "Project",
 	}:
-		if err := (&controllersdomain.DomainReconciler{
+		if err := (&controllerscloud.ProjectReconciler{
 			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Domain"),
+			Log:              ctrl.Log.WithName("controllers").WithName("Project"),
 			Scheme:           mgr.GetScheme(),
 			Gvk:              gvk,
 			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_domain"],
-			TypeName:         "ovh_domain",
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project"],
+			TypeName:         "ovh_cloud_project",
 			WatchOnlyDefault: watchOnlyDefault,
 		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Domain")
+			setupLog.Error(err, "unable to create controller", "controller", "Project")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectContainerregistry",
+	}:
+		if err := (&controllerscloud.ProjectContainerregistryReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ProjectContainerregistry"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project_containerregistry"],
+			TypeName:         "ovh_cloud_project_containerregistry",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ProjectContainerregistry")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectContainerregistryUser",
+	}:
+		if err := (&controllerscloud.ProjectContainerregistryUserReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ProjectContainerregistryUser"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project_containerregistry_user"],
+			TypeName:         "ovh_cloud_project_containerregistry_user",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ProjectContainerregistryUser")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectKube",
+	}:
+		if err := (&controllerscloud.ProjectKubeReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ProjectKube"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project_kube"],
+			TypeName:         "ovh_cloud_project_kube",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ProjectKube")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectKubeNodepool",
+	}:
+		if err := (&controllerscloud.ProjectKubeNodepoolReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ProjectKubeNodepool"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project_kube_nodepool"],
+			TypeName:         "ovh_cloud_project_kube_nodepool",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ProjectKubeNodepool")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectNetworkPrivate",
+	}:
+		if err := (&controllerscloud.ProjectNetworkPrivateReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ProjectNetworkPrivate"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project_network_private"],
+			TypeName:         "ovh_cloud_project_network_private",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ProjectNetworkPrivate")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectNetworkPrivateSubnet",
+	}:
+		if err := (&controllerscloud.ProjectNetworkPrivateSubnetReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ProjectNetworkPrivateSubnet"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project_network_private_subnet"],
+			TypeName:         "ovh_cloud_project_network_private_subnet",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ProjectNetworkPrivateSubnet")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectUser",
+	}:
+		if err := (&controllerscloud.ProjectUserReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ProjectUser"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_cloud_project_user"],
+			TypeName:         "ovh_cloud_project_user",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ProjectUser")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dbaas.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "LogsInput",
+	}:
+		if err := (&controllersdbaas.LogsInputReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("LogsInput"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_dbaas_logs_input"],
+			TypeName:         "ovh_dbaas_logs_input",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "LogsInput")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dbaas.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "LogsOutputGraylogStream",
+	}:
+		if err := (&controllersdbaas.LogsOutputGraylogStreamReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("LogsOutputGraylogStream"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_dbaas_logs_output_graylog_stream"],
+			TypeName:         "ovh_dbaas_logs_output_graylog_stream",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "LogsOutputGraylogStream")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "CephACL",
+	}:
+		if err := (&controllersdedicated.CephACLReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("CephACL"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_dedicated_ceph_acl"],
+			TypeName:         "ovh_dedicated_ceph_acl",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "CephACL")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ServerInstallTask",
+	}:
+		if err := (&controllersdedicated.ServerInstallTaskReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ServerInstallTask"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_dedicated_server_install_task"],
+			TypeName:         "ovh_dedicated_server_install_task",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ServerInstallTask")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ServerRebootTask",
+	}:
+		if err := (&controllersdedicated.ServerRebootTaskReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ServerRebootTask"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_dedicated_server_reboot_task"],
+			TypeName:         "ovh_dedicated_server_reboot_task",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ServerRebootTask")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ServerUpdate",
+	}:
+		if err := (&controllersdedicated.ServerUpdateReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("ServerUpdate"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_dedicated_server_update"],
+			TypeName:         "ovh_dedicated_server_update",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ServerUpdate")
 			return err
 		}
 	case schema.GroupVersionKind{
 		Group:   "domain.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Record",
+		Kind:    "Zone",
 	}:
-		if err := (&controllersdomain.RecordReconciler{
+		if err := (&controllersdomain.ZoneReconciler{
 			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Record"),
+			Log:              ctrl.Log.WithName("controllers").WithName("Zone"),
 			Scheme:           mgr.GetScheme(),
 			Gvk:              gvk,
 			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_domain_record"],
-			TypeName:         "ovh_domain_record",
+			Resource:         ovh.Provider().ResourcesMap["ovh_domain_zone"],
+			TypeName:         "ovh_domain_zone",
 			WatchOnlyDefault: watchOnlyDefault,
 		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Record")
+			setupLog.Error(err, "unable to create controller", "controller", "Zone")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "firewall.ovh.kubeform.com",
+		Group:   "domain.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Firewall",
+		Kind:    "ZoneRecord",
 	}:
-		if err := (&controllersfirewall.FirewallReconciler{
+		if err := (&controllersdomain.ZoneRecordReconciler{
 			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Firewall"),
+			Log:              ctrl.Log.WithName("controllers").WithName("ZoneRecord"),
 			Scheme:           mgr.GetScheme(),
 			Gvk:              gvk,
 			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_firewall"],
-			TypeName:         "ovh_firewall",
+			Resource:         ovh.Provider().ResourcesMap["ovh_domain_zone_record"],
+			TypeName:         "ovh_domain_zone_record",
 			WatchOnlyDefault: watchOnlyDefault,
 		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Firewall")
+			setupLog.Error(err, "unable to create controller", "controller", "ZoneRecord")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "image.ovh.kubeform.com",
+		Group:   "domain.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Image",
+		Kind:    "ZoneRedirection",
 	}:
-		if err := (&controllersimage.ImageReconciler{
+		if err := (&controllersdomain.ZoneRedirectionReconciler{
 			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Image"),
+			Log:              ctrl.Log.WithName("controllers").WithName("ZoneRedirection"),
 			Scheme:           mgr.GetScheme(),
 			Gvk:              gvk,
 			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_image"],
-			TypeName:         "ovh_image",
+			Resource:         ovh.Provider().ResourcesMap["ovh_domain_zone_redirection"],
+			TypeName:         "ovh_domain_zone_redirection",
 			WatchOnlyDefault: watchOnlyDefault,
 		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Image")
+			setupLog.Error(err, "unable to create controller", "controller", "ZoneRedirection")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "instance.ovh.kubeform.com",
+		Group:   "ip.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Instance",
+		Kind:    "Reverse",
 	}:
-		if err := (&controllersinstance.InstanceReconciler{
+		if err := (&controllersip.ReverseReconciler{
 			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Instance"),
+			Log:              ctrl.Log.WithName("controllers").WithName("Reverse"),
 			Scheme:           mgr.GetScheme(),
 			Gvk:              gvk,
 			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_instance"],
-			TypeName:         "ovh_instance",
+			Resource:         ovh.Provider().ResourcesMap["ovh_ip_reverse"],
+			TypeName:         "ovh_ip_reverse",
 			WatchOnlyDefault: watchOnlyDefault,
 		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Instance")
+			setupLog.Error(err, "unable to create controller", "controller", "Reverse")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "instance.ovh.kubeform.com",
+		Group:   "ip.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Service",
+	}:
+		if err := (&controllersip.ServiceReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("Service"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_ip_service"],
+			TypeName:         "ovh_ip_service",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Service")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Iploadbalancing",
+	}:
+		if err := (&controllersiploadbalancing.IploadbalancingReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("Iploadbalancing"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing"],
+			TypeName:         "ovh_iploadbalancing",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Iploadbalancing")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpFarm",
+	}:
+		if err := (&controllersiploadbalancing.HttpFarmReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("HttpFarm"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_http_farm"],
+			TypeName:         "ovh_iploadbalancing_http_farm",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "HttpFarm")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpFarmServer",
+	}:
+		if err := (&controllersiploadbalancing.HttpFarmServerReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("HttpFarmServer"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_http_farm_server"],
+			TypeName:         "ovh_iploadbalancing_http_farm_server",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "HttpFarmServer")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpFrontend",
+	}:
+		if err := (&controllersiploadbalancing.HttpFrontendReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("HttpFrontend"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_http_frontend"],
+			TypeName:         "ovh_iploadbalancing_http_frontend",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "HttpFrontend")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpRoute",
+	}:
+		if err := (&controllersiploadbalancing.HttpRouteReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("HttpRoute"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_http_route"],
+			TypeName:         "ovh_iploadbalancing_http_route",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "HttpRoute")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpRouteRule",
+	}:
+		if err := (&controllersiploadbalancing.HttpRouteRuleReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("HttpRouteRule"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_http_route_rule"],
+			TypeName:         "ovh_iploadbalancing_http_route_rule",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "HttpRouteRule")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Refresh",
+	}:
+		if err := (&controllersiploadbalancing.RefreshReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("Refresh"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_refresh"],
+			TypeName:         "ovh_iploadbalancing_refresh",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Refresh")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpFarm",
+	}:
+		if err := (&controllersiploadbalancing.TcpFarmReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("TcpFarm"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_tcp_farm"],
+			TypeName:         "ovh_iploadbalancing_tcp_farm",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TcpFarm")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpFarmServer",
+	}:
+		if err := (&controllersiploadbalancing.TcpFarmServerReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("TcpFarmServer"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_tcp_farm_server"],
+			TypeName:         "ovh_iploadbalancing_tcp_farm_server",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TcpFarmServer")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpFrontend",
+	}:
+		if err := (&controllersiploadbalancing.TcpFrontendReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("TcpFrontend"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_tcp_frontend"],
+			TypeName:         "ovh_iploadbalancing_tcp_frontend",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TcpFrontend")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "VrackNetwork",
+	}:
+		if err := (&controllersiploadbalancing.VrackNetworkReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("VrackNetwork"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_iploadbalancing_vrack_network"],
+			TypeName:         "ovh_iploadbalancing_vrack_network",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "VrackNetwork")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "IdentityUser",
+	}:
+		if err := (&controllersme.IdentityUserReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("IdentityUser"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_me_identity_user"],
+			TypeName:         "ovh_me_identity_user",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "IdentityUser")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplate",
+	}:
+		if err := (&controllersme.InstallationTemplateReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("InstallationTemplate"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_me_installation_template"],
+			TypeName:         "ovh_me_installation_template",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "InstallationTemplate")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplatePartitionScheme",
+	}:
+		if err := (&controllersme.InstallationTemplatePartitionSchemeReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("InstallationTemplatePartitionScheme"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_me_installation_template_partition_scheme"],
+			TypeName:         "ovh_me_installation_template_partition_scheme",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "InstallationTemplatePartitionScheme")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplatePartitionSchemeHardwareRaid",
+	}:
+		if err := (&controllersme.InstallationTemplatePartitionSchemeHardwareRaidReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("InstallationTemplatePartitionSchemeHardwareRaid"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_me_installation_template_partition_scheme_hardware_raid"],
+			TypeName:         "ovh_me_installation_template_partition_scheme_hardware_raid",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "InstallationTemplatePartitionSchemeHardwareRaid")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplatePartitionSchemePartition",
+	}:
+		if err := (&controllersme.InstallationTemplatePartitionSchemePartitionReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("InstallationTemplatePartitionSchemePartition"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_me_installation_template_partition_scheme_partition"],
+			TypeName:         "ovh_me_installation_template_partition_scheme_partition",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "InstallationTemplatePartitionSchemePartition")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "IpxeScript",
+	}:
+		if err := (&controllersme.IpxeScriptReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("IpxeScript"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_me_ipxe_script"],
+			TypeName:         "ovh_me_ipxe_script",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "IpxeScript")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "SshKey",
+	}:
+		if err := (&controllersme.SshKeyReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("SshKey"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_me_ssh_key"],
+			TypeName:         "ovh_me_ssh_key",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "SshKey")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Vrack",
+	}:
+		if err := (&controllersvrack.VrackReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("Vrack"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_vrack"],
+			TypeName:         "ovh_vrack",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Vrack")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Cloudproject",
+	}:
+		if err := (&controllersvrack.CloudprojectReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("Cloudproject"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_vrack_cloudproject"],
+			TypeName:         "ovh_vrack_cloudproject",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Cloudproject")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "DedicatedServer",
+	}:
+		if err := (&controllersvrack.DedicatedServerReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("DedicatedServer"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_vrack_dedicated_server"],
+			TypeName:         "ovh_vrack_dedicated_server",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "DedicatedServer")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "DedicatedServerInterface",
+	}:
+		if err := (&controllersvrack.DedicatedServerInterfaceReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("DedicatedServerInterface"),
+			Scheme:           mgr.GetScheme(),
+			Gvk:              gvk,
+			Provider:         ovh.Provider(),
+			Resource:         ovh.Provider().ResourcesMap["ovh_vrack_dedicated_server_interface"],
+			TypeName:         "ovh_vrack_dedicated_server_interface",
+			WatchOnlyDefault: watchOnlyDefault,
+		}).SetupWithManager(ctx, mgr, auditor); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "DedicatedServerInterface")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
 		Version: "v1alpha1",
 		Kind:    "Ip",
 	}:
-		if err := (&controllersinstance.IpReconciler{
+		if err := (&controllersvrack.IpReconciler{
 			Client:           mgr.GetClient(),
 			Log:              ctrl.Log.WithName("controllers").WithName("Ip"),
 			Scheme:           mgr.GetScheme(),
 			Gvk:              gvk,
 			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_instance_ip"],
-			TypeName:         "ovh_instance_ip",
+			Resource:         ovh.Provider().ResourcesMap["ovh_vrack_ip"],
+			TypeName:         "ovh_vrack_ip",
 			WatchOnlyDefault: watchOnlyDefault,
 		}).SetupWithManager(ctx, mgr, auditor); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Ip")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "lke.ovh.kubeform.com",
+		Group:   "vrack.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Cluster",
+		Kind:    "Iploadbalancing",
 	}:
-		if err := (&controllerslke.ClusterReconciler{
+		if err := (&controllersvrack.IploadbalancingReconciler{
 			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Cluster"),
+			Log:              ctrl.Log.WithName("controllers").WithName("Iploadbalancing"),
 			Scheme:           mgr.GetScheme(),
 			Gvk:              gvk,
 			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_lke_cluster"],
-			TypeName:         "ovh_lke_cluster",
+			Resource:         ovh.Provider().ResourcesMap["ovh_vrack_iploadbalancing"],
+			TypeName:         "ovh_vrack_iploadbalancing",
 			WatchOnlyDefault: watchOnlyDefault,
 		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Cluster")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "nodebalancer.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Nodebalancer",
-	}:
-		if err := (&controllersnodebalancer.NodebalancerReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Nodebalancer"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_nodebalancer"],
-			TypeName:         "ovh_nodebalancer",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Nodebalancer")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "nodebalancer.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Config",
-	}:
-		if err := (&controllersnodebalancer.ConfigReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Config"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_nodebalancer_config"],
-			TypeName:         "ovh_nodebalancer_config",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Config")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "nodebalancer.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Node",
-	}:
-		if err := (&controllersnodebalancer.NodeReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Node"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_nodebalancer_node"],
-			TypeName:         "ovh_nodebalancer_node",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Node")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "object.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "StorageBucket",
-	}:
-		if err := (&controllersobject.StorageBucketReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("StorageBucket"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_object_storage_bucket"],
-			TypeName:         "ovh_object_storage_bucket",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "StorageBucket")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "object.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "StorageKey",
-	}:
-		if err := (&controllersobject.StorageKeyReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("StorageKey"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_object_storage_key"],
-			TypeName:         "ovh_object_storage_key",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "StorageKey")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "object.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "StorageObject",
-	}:
-		if err := (&controllersobject.StorageObjectReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("StorageObject"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_object_storage_object"],
-			TypeName:         "ovh_object_storage_object",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "StorageObject")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "rdns.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Rdns",
-	}:
-		if err := (&controllersrdns.RdnsReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Rdns"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_rdns"],
-			TypeName:         "ovh_rdns",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Rdns")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "sshkey.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Sshkey",
-	}:
-		if err := (&controllerssshkey.SshkeyReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Sshkey"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_sshkey"],
-			TypeName:         "ovh_sshkey",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Sshkey")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "stackscript.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Stackscript",
-	}:
-		if err := (&controllersstackscript.StackscriptReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Stackscript"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_stackscript"],
-			TypeName:         "ovh_stackscript",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Stackscript")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "token.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Token",
-	}:
-		if err := (&controllerstoken.TokenReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Token"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_token"],
-			TypeName:         "ovh_token",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Token")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "user.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "User",
-	}:
-		if err := (&controllersuser.UserReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("User"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_user"],
-			TypeName:         "ovh_user",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "User")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "volume.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Volume",
-	}:
-		if err := (&controllersvolume.VolumeReconciler{
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Volume"),
-			Scheme:           mgr.GetScheme(),
-			Gvk:              gvk,
-			Provider:         ovh.Provider(),
-			Resource:         ovh.Provider().ResourcesMap["ovh_volume"],
-			TypeName:         "ovh_volume",
-			WatchOnlyDefault: watchOnlyDefault,
-		}).SetupWithManager(ctx, mgr, auditor); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Volume")
+			setupLog.Error(err, "unable to create controller", "controller", "Iploadbalancing")
 			return err
 		}
 
@@ -601,174 +1023,390 @@ func SetupManager(ctx context.Context, mgr manager.Manager, gvk schema.GroupVers
 func SetupWebhook(mgr manager.Manager, gvk schema.GroupVersionKind) error {
 	switch gvk {
 	case schema.GroupVersionKind{
-		Group:   "domain.ovh.kubeform.com",
+		Group:   "cloud.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Domain",
+		Kind:    "Project",
 	}:
-		if err := (&domainv1alpha1.Domain{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Domain")
+		if err := (&cloudv1alpha1.Project{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Project")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectContainerregistry",
+	}:
+		if err := (&cloudv1alpha1.ProjectContainerregistry{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProjectContainerregistry")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectContainerregistryUser",
+	}:
+		if err := (&cloudv1alpha1.ProjectContainerregistryUser{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProjectContainerregistryUser")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectKube",
+	}:
+		if err := (&cloudv1alpha1.ProjectKube{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProjectKube")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectKubeNodepool",
+	}:
+		if err := (&cloudv1alpha1.ProjectKubeNodepool{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProjectKubeNodepool")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectNetworkPrivate",
+	}:
+		if err := (&cloudv1alpha1.ProjectNetworkPrivate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProjectNetworkPrivate")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectNetworkPrivateSubnet",
+	}:
+		if err := (&cloudv1alpha1.ProjectNetworkPrivateSubnet{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProjectNetworkPrivateSubnet")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "cloud.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ProjectUser",
+	}:
+		if err := (&cloudv1alpha1.ProjectUser{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProjectUser")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dbaas.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "LogsInput",
+	}:
+		if err := (&dbaasv1alpha1.LogsInput{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "LogsInput")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dbaas.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "LogsOutputGraylogStream",
+	}:
+		if err := (&dbaasv1alpha1.LogsOutputGraylogStream{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "LogsOutputGraylogStream")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "CephACL",
+	}:
+		if err := (&dedicatedv1alpha1.CephACL{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "CephACL")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ServerInstallTask",
+	}:
+		if err := (&dedicatedv1alpha1.ServerInstallTask{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ServerInstallTask")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ServerRebootTask",
+	}:
+		if err := (&dedicatedv1alpha1.ServerRebootTask{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ServerRebootTask")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "dedicated.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "ServerUpdate",
+	}:
+		if err := (&dedicatedv1alpha1.ServerUpdate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ServerUpdate")
 			return err
 		}
 	case schema.GroupVersionKind{
 		Group:   "domain.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Record",
+		Kind:    "Zone",
 	}:
-		if err := (&domainv1alpha1.Record{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Record")
+		if err := (&domainv1alpha1.Zone{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Zone")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "firewall.ovh.kubeform.com",
+		Group:   "domain.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Firewall",
+		Kind:    "ZoneRecord",
 	}:
-		if err := (&firewallv1alpha1.Firewall{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Firewall")
+		if err := (&domainv1alpha1.ZoneRecord{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ZoneRecord")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "image.ovh.kubeform.com",
+		Group:   "domain.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Image",
+		Kind:    "ZoneRedirection",
 	}:
-		if err := (&imagev1alpha1.Image{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Image")
+		if err := (&domainv1alpha1.ZoneRedirection{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ZoneRedirection")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "instance.ovh.kubeform.com",
+		Group:   "ip.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Instance",
+		Kind:    "Reverse",
 	}:
-		if err := (&instancev1alpha1.Instance{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Instance")
+		if err := (&ipv1alpha1.Reverse{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Reverse")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "instance.ovh.kubeform.com",
+		Group:   "ip.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Service",
+	}:
+		if err := (&ipv1alpha1.Service{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Service")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Iploadbalancing",
+	}:
+		if err := (&iploadbalancingv1alpha1.Iploadbalancing{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Iploadbalancing")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpFarm",
+	}:
+		if err := (&iploadbalancingv1alpha1.HttpFarm{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "HttpFarm")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpFarmServer",
+	}:
+		if err := (&iploadbalancingv1alpha1.HttpFarmServer{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "HttpFarmServer")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpFrontend",
+	}:
+		if err := (&iploadbalancingv1alpha1.HttpFrontend{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "HttpFrontend")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpRoute",
+	}:
+		if err := (&iploadbalancingv1alpha1.HttpRoute{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "HttpRoute")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "HttpRouteRule",
+	}:
+		if err := (&iploadbalancingv1alpha1.HttpRouteRule{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "HttpRouteRule")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Refresh",
+	}:
+		if err := (&iploadbalancingv1alpha1.Refresh{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Refresh")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpFarm",
+	}:
+		if err := (&iploadbalancingv1alpha1.TcpFarm{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "TcpFarm")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpFarmServer",
+	}:
+		if err := (&iploadbalancingv1alpha1.TcpFarmServer{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "TcpFarmServer")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpFrontend",
+	}:
+		if err := (&iploadbalancingv1alpha1.TcpFrontend{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "TcpFrontend")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "VrackNetwork",
+	}:
+		if err := (&iploadbalancingv1alpha1.VrackNetwork{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "VrackNetwork")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "IdentityUser",
+	}:
+		if err := (&mev1alpha1.IdentityUser{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "IdentityUser")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplate",
+	}:
+		if err := (&mev1alpha1.InstallationTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "InstallationTemplate")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplatePartitionScheme",
+	}:
+		if err := (&mev1alpha1.InstallationTemplatePartitionScheme{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "InstallationTemplatePartitionScheme")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplatePartitionSchemeHardwareRaid",
+	}:
+		if err := (&mev1alpha1.InstallationTemplatePartitionSchemeHardwareRaid{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "InstallationTemplatePartitionSchemeHardwareRaid")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "InstallationTemplatePartitionSchemePartition",
+	}:
+		if err := (&mev1alpha1.InstallationTemplatePartitionSchemePartition{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "InstallationTemplatePartitionSchemePartition")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "IpxeScript",
+	}:
+		if err := (&mev1alpha1.IpxeScript{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "IpxeScript")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "me.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "SshKey",
+	}:
+		if err := (&mev1alpha1.SshKey{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "SshKey")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Vrack",
+	}:
+		if err := (&vrackv1alpha1.Vrack{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Vrack")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "Cloudproject",
+	}:
+		if err := (&vrackv1alpha1.Cloudproject{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Cloudproject")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "DedicatedServer",
+	}:
+		if err := (&vrackv1alpha1.DedicatedServer{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "DedicatedServer")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "DedicatedServerInterface",
+	}:
+		if err := (&vrackv1alpha1.DedicatedServerInterface{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "DedicatedServerInterface")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "vrack.ovh.kubeform.com",
 		Version: "v1alpha1",
 		Kind:    "Ip",
 	}:
-		if err := (&instancev1alpha1.Ip{}).SetupWebhookWithManager(mgr); err != nil {
+		if err := (&vrackv1alpha1.Ip{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Ip")
 			return err
 		}
 	case schema.GroupVersionKind{
-		Group:   "lke.ovh.kubeform.com",
+		Group:   "vrack.ovh.kubeform.com",
 		Version: "v1alpha1",
-		Kind:    "Cluster",
+		Kind:    "Iploadbalancing",
 	}:
-		if err := (&lkev1alpha1.Cluster{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Cluster")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "nodebalancer.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Nodebalancer",
-	}:
-		if err := (&nodebalancerv1alpha1.Nodebalancer{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Nodebalancer")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "nodebalancer.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Config",
-	}:
-		if err := (&nodebalancerv1alpha1.Config{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Config")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "nodebalancer.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Node",
-	}:
-		if err := (&nodebalancerv1alpha1.Node{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Node")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "object.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "StorageBucket",
-	}:
-		if err := (&objectv1alpha1.StorageBucket{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "StorageBucket")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "object.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "StorageKey",
-	}:
-		if err := (&objectv1alpha1.StorageKey{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "StorageKey")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "object.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "StorageObject",
-	}:
-		if err := (&objectv1alpha1.StorageObject{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "StorageObject")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "rdns.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Rdns",
-	}:
-		if err := (&rdnsv1alpha1.Rdns{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Rdns")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "sshkey.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Sshkey",
-	}:
-		if err := (&sshkeyv1alpha1.Sshkey{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Sshkey")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "stackscript.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Stackscript",
-	}:
-		if err := (&stackscriptv1alpha1.Stackscript{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Stackscript")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "token.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Token",
-	}:
-		if err := (&tokenv1alpha1.Token{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Token")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "user.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "User",
-	}:
-		if err := (&userv1alpha1.User{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "User")
-			return err
-		}
-	case schema.GroupVersionKind{
-		Group:   "volume.ovh.kubeform.com",
-		Version: "v1alpha1",
-		Kind:    "Volume",
-	}:
-		if err := (&volumev1alpha1.Volume{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Volume")
+		if err := (&vrackv1alpha1.Iploadbalancing{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Iploadbalancing")
 			return err
 		}
 

@@ -8,12 +8,10 @@ require (
 	github.com/gobuffalo/flect v0.2.3
 	github.com/hashicorp/go-cty v1.4.1-0.20200414143053-d3edf31b6320
 	github.com/hashicorp/terraform-plugin-go v0.3.0
-	github.com/hashicorp/terraform-plugin-sdk/v2 v2.6.0
+	github.com/hashicorp/terraform-plugin-sdk/v2 v2.6.1
 	github.com/imdario/mergo v0.3.12
 	github.com/json-iterator/go v1.1.11
-	github.com/ovh/terraform-provider-ovh v1.19.1
-	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.13.0
+	github.com/ovh/terraform-provider-ovh v0.15.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.1.3
 	go.bytebuilders.dev/audit v0.0.7
@@ -27,9 +25,8 @@ require (
 	k8s.io/client-go v0.21.1
 	k8s.io/klog/v2 v2.8.0
 	kmodules.xyz/client-go v0.0.0-20210617233340-13d22e91512b
-	kmodules.xyz/constants v0.0.0-20210218100002-2c304bfda278
 	kubeform.dev/apimachinery v0.0.0-20210629153539-7bcd34a30eb5
-	kubeform.dev/provider-ovh-api v0.2.0
+	kubeform.dev/provider-ovh-api v0.0.0-20210729223948-d2fe67950604
 	sigs.k8s.io/cli-utils v0.25.0
 	sigs.k8s.io/controller-runtime v0.9.0
 )
