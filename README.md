@@ -3,7 +3,7 @@
 
 # provider-ovh-controller
 
-Kubeform controller for [Terraform Ovh Provider](https://github.com/equinix/terraform-provider-metal)
+Kubeform controller for [Terraform OVH Provider](https://github.com/ovh/terraform-provider-ovh)
 
 ## Installation
 
