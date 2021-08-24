@@ -20,8 +20,8 @@ package me
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/go-errors/errors"
 	"github.com/go-logr/logr"
 	tfschema "github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	auditlib "go.bytebuilders.dev/audit/lib"
@@ -118,7 +118,7 @@ func (r *IdentityUserReconciler) SensitiveSecretWatch(ctx context.Context) handl
 
 		sensSec, ok := o.(*v1.Secret)
 		if !ok {
-			log.Error(errors.Errorf("expected a Secret but go a %T", o), "failed to get secret for IdentityUser")
+			log.Error(fmt.Errorf("expected a Secret but go a %T", o), "failed to get secret for IdentityUser")
 			return nil
 		}
 
