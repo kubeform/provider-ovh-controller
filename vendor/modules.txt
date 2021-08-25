@@ -1094,7 +1094,7 @@ kmodules.xyz/resource-metadata/pkg/graph
 ## explicit
 kubeform.dev/apimachinery/api/v1alpha1
 kubeform.dev/apimachinery/pkg/util
-# kubeform.dev/provider-ovh-api v0.3.1-0.20210824193708-11d9dd018bc5
+# kubeform.dev/provider-ovh-api v0.3.1-0.20210824195720-44b84512f4b1
 ## explicit
 kubeform.dev/provider-ovh-api/api/provider
 kubeform.dev/provider-ovh-api/apis/cloud
