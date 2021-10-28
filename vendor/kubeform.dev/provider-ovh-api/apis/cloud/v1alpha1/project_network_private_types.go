@@ -41,6 +41,14 @@ type ProjectNetworkPrivate struct {
 	Status            ProjectNetworkPrivateStatus `json:"status,omitempty"`
 }
 
+type ProjectNetworkPrivateSpecRegionsAttributes struct {
+	// +optional
+	Openstackid *string `json:"openstackid,omitempty" tf:"openstackid"`
+	// +optional
+	Region *string `json:"region,omitempty" tf:"region"`
+	Status *string `json:"status" tf:"status"`
+}
+
 type ProjectNetworkPrivateSpecRegionsStatus struct {
 	// +optional
 	Region *string `json:"region,omitempty" tf:"region"`
@@ -66,8 +74,12 @@ type ProjectNetworkPrivateSpecResource struct {
 
 	Name *string `json:"name" tf:"name"`
 	// +optional
+	// Deprecated
 	Regions []string `json:"regions,omitempty" tf:"regions"`
 	// +optional
+	RegionsAttributes []ProjectNetworkPrivateSpecRegionsAttributes `json:"regionsAttributes,omitempty" tf:"regions_attributes"`
+	// +optional
+	// Deprecated
 	RegionsStatus []ProjectNetworkPrivateSpecRegionsStatus `json:"regionsStatus,omitempty" tf:"regions_status"`
 	// Service name of the resource representing the id of the cloud project.
 	ServiceName *string `json:"serviceName" tf:"service_name"`

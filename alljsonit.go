@@ -274,6 +274,22 @@ var (
 		{
 			Group:    "iploadbalancing.ovh.kubeform.com",
 			Version:  "v1alpha1",
+			Resource: "tcproutes",
+		}: {
+			JsonIt:       controllers.GetJSONItr(iploadbalancingv1alpha1.GetEncoder(), iploadbalancingv1alpha1.GetDecoder()),
+			ResourceType: "ovh_iploadbalancing_tcp_route",
+		},
+		{
+			Group:    "iploadbalancing.ovh.kubeform.com",
+			Version:  "v1alpha1",
+			Resource: "tcprouterules",
+		}: {
+			JsonIt:       controllers.GetJSONItr(iploadbalancingv1alpha1.GetEncoder(), iploadbalancingv1alpha1.GetDecoder()),
+			ResourceType: "ovh_iploadbalancing_tcp_route_rule",
+		},
+		{
+			Group:    "iploadbalancing.ovh.kubeform.com",
+			Version:  "v1alpha1",
 			Resource: "vracknetworks",
 		}: {
 			JsonIt:       controllers.GetJSONItr(iploadbalancingv1alpha1.GetEncoder(), iploadbalancingv1alpha1.GetDecoder()),

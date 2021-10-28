@@ -737,6 +737,40 @@ func SetupManager(ctx context.Context, mgr manager.Manager, gvk schema.GroupVers
 	case schema.GroupVersionKind{
 		Group:   "iploadbalancing.ovh.kubeform.com",
 		Version: "v1alpha1",
+		Kind:    "TcpRoute",
+	}:
+		if err := (&controllersiploadbalancing.TcpRouteReconciler{
+			Client:   mgr.GetClient(),
+			Log:      ctrl.Log.WithName("controllers").WithName("TcpRoute"),
+			Scheme:   mgr.GetScheme(),
+			Gvk:      gvk,
+			Provider: _provider,
+			Resource: _provider.ResourcesMap["ovh_iploadbalancing_tcp_route"],
+			TypeName: "ovh_iploadbalancing_tcp_route",
+		}).SetupWithManager(ctx, mgr, auditor, restrictToNamespace); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TcpRoute")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpRouteRule",
+	}:
+		if err := (&controllersiploadbalancing.TcpRouteRuleReconciler{
+			Client:   mgr.GetClient(),
+			Log:      ctrl.Log.WithName("controllers").WithName("TcpRouteRule"),
+			Scheme:   mgr.GetScheme(),
+			Gvk:      gvk,
+			Provider: _provider,
+			Resource: _provider.ResourcesMap["ovh_iploadbalancing_tcp_route_rule"],
+			TypeName: "ovh_iploadbalancing_tcp_route_rule",
+		}).SetupWithManager(ctx, mgr, auditor, restrictToNamespace); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TcpRouteRule")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
 		Kind:    "VrackNetwork",
 	}:
 		if err := (&controllersiploadbalancing.VrackNetworkReconciler{
@@ -1241,6 +1275,24 @@ func SetupWebhook(mgr manager.Manager, gvk schema.GroupVersionKind) error {
 	}:
 		if err := (&iploadbalancingv1alpha1.TcpFrontend{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "TcpFrontend")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpRoute",
+	}:
+		if err := (&iploadbalancingv1alpha1.TcpRoute{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "TcpRoute")
+			return err
+		}
+	case schema.GroupVersionKind{
+		Group:   "iploadbalancing.ovh.kubeform.com",
+		Version: "v1alpha1",
+		Kind:    "TcpRouteRule",
+	}:
+		if err := (&iploadbalancingv1alpha1.TcpRouteRule{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "TcpRouteRule")
 			return err
 		}
 	case schema.GroupVersionKind{

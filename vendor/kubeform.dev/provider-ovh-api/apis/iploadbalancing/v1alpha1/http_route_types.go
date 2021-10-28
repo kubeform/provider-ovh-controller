@@ -42,11 +42,35 @@ type HttpRoute struct {
 }
 
 type HttpRouteSpecAction struct {
+	// HTTP status code for "redirect" and "reject" actions
 	// +optional
 	Status *int64 `json:"status,omitempty" tf:"status"`
+	// Farm ID for "farm" action type or URL template for "redirect" action. You may use ${uri}, ${protocol}, ${host}, ${port} and ${path} variables in redirect target
 	// +optional
 	Target *string `json:"target,omitempty" tf:"target"`
-	Type   *string `json:"type" tf:"type"`
+	// Action to trigger if all the rules of this route matches
+	Type *string `json:"type" tf:"type"`
+}
+
+type HttpRouteSpecRules struct {
+	// Name of the field to match like "protocol" or "host". See "/ipLoadbalancing/{serviceName}/route/availableRules" for a list of available rules
+	// +optional
+	Field *string `json:"field,omitempty" tf:"field"`
+	// Matching operator. Not all operators are available for all fields. See "/availableRules"
+	// +optional
+	Match *string `json:"match,omitempty" tf:"match"`
+	// Invert the matching operator effect
+	// +optional
+	Negate *bool `json:"negate,omitempty" tf:"negate"`
+	// Value to match against this match. Interpretation if this field depends on the match and field
+	// +optional
+	Pattern *string `json:"pattern,omitempty" tf:"pattern"`
+	// Id of your rule
+	// +optional
+	RuleID *int64 `json:"ruleID,omitempty" tf:"rule_id"`
+	// Name of sub-field, if applicable. This may be a Cookie or Header name for instance
+	// +optional
+	SubField *string `json:"subField,omitempty" tf:"sub_field"`
 }
 
 type HttpRouteSpec struct {
@@ -66,12 +90,23 @@ type HttpRouteSpec struct {
 type HttpRouteSpecResource struct {
 	ID string `json:"id,omitempty" tf:"id,omitempty"`
 
+	// Action triggered when all rules match
 	Action *HttpRouteSpecAction `json:"action" tf:"action"`
+	// Human readable name for your route, this field is for you
 	// +optional
 	DisplayName *string `json:"displayName,omitempty" tf:"display_name"`
+	// Route traffic for this frontend
 	// +optional
-	FrontendID  *int64  `json:"frontendID,omitempty" tf:"frontend_id"`
+	FrontendID *int64 `json:"frontendID,omitempty" tf:"frontend_id"`
+	// List of rules to match to trigger action
+	// +optional
+	Rules []HttpRouteSpecRules `json:"rules,omitempty" tf:"rules"`
+	// The internal name of your IP load balancing
 	ServiceName *string `json:"serviceName" tf:"service_name"`
+	// Route status. Routes in "ok" state are ready to operate
+	// +optional
+	Status *string `json:"status,omitempty" tf:"status"`
+	// Route priority ([0..255]). 0 if null. Highest priority routes are evaluated last. Only the first matching route will trigger an action
 	// +optional
 	Weight *int64 `json:"weight,omitempty" tf:"weight"`
 }
