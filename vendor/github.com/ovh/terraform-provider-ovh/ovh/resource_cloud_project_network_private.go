@@ -58,16 +58,35 @@ func resourceCloudProjectNetworkPrivate() *schema.Resource {
 				Default:  0,
 			},
 			"regions": {
-				Type:     schema.TypeSet,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Set:      schema.HashString,
+				Type:       schema.TypeSet,
+				Optional:   true,
+				Computed:   true,
+				Deprecated: "use the regions_attributes field instead",
+				ForceNew:   true,
+				Elem:       &schema.Schema{Type: schema.TypeString},
+				Set:        schema.HashString,
 			},
 
 			"regions_status": {
-				Type:     schema.TypeSet,
+				Type:       schema.TypeSet,
+				Computed:   true,
+				Deprecated: "use the regions_attributes field instead",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"status": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+
+						"region": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+					},
+				},
+			},
+			"regions_attributes": {
+				Type:     schema.TypeList,
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -77,6 +96,11 @@ func resourceCloudProjectNetworkPrivate() *schema.Resource {
 						},
 
 						"region": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+
+						"openstackid": {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
@@ -162,15 +186,24 @@ func resourceCloudProjectNetworkPrivateRead(d *schema.ResourceData, meta interfa
 	d.Set("vlan_id", r.Vlanid)
 
 	regions_status := make([]map[string]interface{}, 0)
+	regions_attributes := make([]map[string]interface{}, 0)
 	regions := make([]string, 0)
 
 	for i := range r.Regions {
-		region := make(map[string]interface{})
-		region["region"] = r.Regions[i].Region
-		region["status"] = r.Regions[i].Status
-		regions_status = append(regions_status, region)
+		region_attributes := make(map[string]interface{})
+		region_attributes["region"] = r.Regions[i].Region
+		region_attributes["status"] = r.Regions[i].Status
+		region_attributes["openstackid"] = r.Regions[i].OpenStackId
+		regions_attributes = append(regions_attributes, region_attributes)
+
+		region_status := make(map[string]interface{})
+		region_status["region"] = r.Regions[i].Region
+		region_status["status"] = r.Regions[i].Status
+		regions_status = append(regions_status, region_status)
+
 		regions = append(regions, fmt.Sprintf(r.Regions[i].Region))
 	}
+	d.Set("regions_attributes", regions_attributes)
 	d.Set("regions_status", regions_status)
 	d.Set("regions", regions)
 

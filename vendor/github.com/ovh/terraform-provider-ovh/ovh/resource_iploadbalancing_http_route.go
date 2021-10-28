@@ -2,62 +2,118 @@ package ovh
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ovh/terraform-provider-ovh/ovh/helpers"
 )
 
-func resourceIPLoadbalancingRouteHTTP() *schema.Resource {
+func resourceIPLoadbalancingHttpRoute() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceIPLoadbalancingRouteHTTPCreate,
-		Read:   resourceIPLoadbalancingRouteHTTPRead,
-		Update: resourceIPLoadbalancingRouteHTTPUpdate,
-		Delete: resourceIPLoadbalancingRouteHTTPDelete,
+		Create: resourceIPLoadbalancingHttpRouteCreate,
+		Read:   resourceIPLoadbalancingHttpRouteRead,
+		Update: resourceIPLoadbalancingHttpRouteUpdate,
+		Delete: resourceIPLoadbalancingHttpRouteDelete,
 		Importer: &schema.ResourceImporter{
 			State: resourceIpLoadbalancingHttpRouteImportState,
 		},
 
 		Schema: map[string]*schema.Schema{
 			"service_name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Description: "The internal name of your IP load balancing",
+				Required:    true,
+				ForceNew:    true,
 			},
 			"action": {
-				Type:     schema.TypeList,
-				Required: true,
-				ForceNew: false,
-				MaxItems: 1,
+				Type:        schema.TypeList,
+				Description: "Action triggered when all rules match",
+				Required:    true,
+				ForceNew:    false,
+				MaxItems:    1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"status": {
-							Type:     schema.TypeInt,
-							Optional: true,
+							Type:        schema.TypeInt,
+							Description: "HTTP status code for \"redirect\" and \"reject\" actions",
+							Optional:    true,
 						},
 						"target": {
-							Type:     schema.TypeString,
-							Optional: true,
+							Type:        schema.TypeString,
+							Description: "Farm ID for \"farm\" action type or URL template for \"redirect\" action. You may use ${uri}, ${protocol}, ${host}, ${port} and ${path} variables in redirect target",
+							Optional:    true,
 						},
 						"type": {
-							Type:     schema.TypeString,
-							Required: true,
+							Type:        schema.TypeString,
+							Description: "Action to trigger if all the rules of this route matches",
+							Required:    true,
 						},
 					},
 				},
 			},
 			"display_name": {
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:        schema.TypeString,
+				Description: "Human readable name for your route, this field is for you",
+				Optional:    true,
 			},
 			"frontend_id": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeInt,
+				Description: "Route traffic for this frontend",
+				Optional:    true,
+				Computed:    true,
 			},
 			"weight": {
-				Type:     schema.TypeInt,
-				Optional: true,
+				Type:        schema.TypeInt,
+				Description: "Route priority ([0..255]). 0 if null. Highest priority routes are evaluated last. Only the first matching route will trigger an action",
+				Optional:    true,
+				Computed:    true,
+			},
+
+			//computed
+			"status": {
+				Type:        schema.TypeString,
+				Description: "Route status. Routes in \"ok\" state are ready to operate",
+				Computed:    true,
+			},
+			"rules": {
+				Type:        schema.TypeList,
+				Description: "List of rules to match to trigger action",
+				Computed:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"field": {
+							Type:        schema.TypeString,
+							Description: "Name of the field to match like \"protocol\" or \"host\". See \"/ipLoadbalancing/{serviceName}/route/availableRules\" for a list of available rules",
+							Computed:    true,
+						},
+						"match": {
+							Type:        schema.TypeString,
+							Description: "Matching operator. Not all operators are available for all fields. See \"/availableRules\"",
+							Computed:    true,
+						},
+						"negate": {
+							Type:        schema.TypeBool,
+							Description: "Invert the matching operator effect",
+							Computed:    true,
+						},
+						"pattern": {
+							Type:        schema.TypeString,
+							Description: "Value to match against this match. Interpretation if this field depends on the match and field",
+							Computed:    true,
+						},
+						"rule_id": {
+							Type:        schema.TypeInt,
+							Description: "Id of your rule",
+							Computed:    true,
+						},
+						"sub_field": {
+							Type:        schema.TypeString,
+							Description: "Name of sub-field, if applicable. This may be a Cookie or Header name for instance",
+							Computed:    true,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -79,103 +135,75 @@ func resourceIpLoadbalancingHttpRouteImportState(d *schema.ResourceData, meta in
 	return results, nil
 }
 
-func resourceIPLoadbalancingRouteHTTPCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	action := &IPLoadbalancingRouteHTTPAction{}
-	actionSet := d.Get("action").([]interface{})[0].(map[string]interface{})
+	serviceName := d.Get("service_name").(string)
+	route := (&IPLoadbalancingHttpRouteOpts{}).FromResource(d)
+	resp := &IPLoadbalancingHttpRoute{}
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route",
+		url.PathEscape(serviceName),
+	)
 
-	action.Status = actionSet["status"].(int)
-	action.Target = actionSet["target"].(string)
-	action.Type = actionSet["type"].(string)
-
-	route := &IPLoadbalancingRouteHTTP{
-		Action:      action,
-		DisplayName: d.Get("display_name").(string),
-		FrontendID:  d.Get("frontend_id").(int),
-		Weight:      d.Get("weight").(int),
-	}
-
-	service := d.Get("service_name").(string)
-	resp := &IPLoadbalancingRouteHTTP{}
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route", service)
-
-	err := config.OVHClient.Post(endpoint, route, resp)
-	if err != nil {
+	if err := config.OVHClient.Post(endpoint, route, resp); err != nil {
 		return fmt.Errorf("calling POST %s :\n\t %s", endpoint, err.Error())
 	}
 
-	d.SetId(fmt.Sprintf("%d", resp.RouteID))
+	d.SetId(fmt.Sprintf("%d", resp.RouteId))
 
-	return resourceIPLoadbalancingRouteHTTPRead(d, meta)
+	return resourceIPLoadbalancingHttpRouteRead(d, meta)
 }
 
-func resourceIPLoadbalancingRouteHTTPRead(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	service := d.Get("service_name").(string)
-	r := &IPLoadbalancingRouteHTTP{}
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s", service, d.Id())
+	serviceName := d.Get("service_name").(string)
+	r := &IPLoadbalancingHttpRoute{}
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s",
+		url.PathEscape(serviceName),
+		url.PathEscape(d.Id()),
+	)
 
 	if err := config.OVHClient.Get(endpoint, r); err != nil {
 		return helpers.CheckDeleted(d, err, endpoint)
 	}
-
-	d.SetId(fmt.Sprintf("%d", r.RouteID))
-
-	actions := make([]map[string]interface{}, 0)
-	action := make(map[string]interface{})
-	action["status"] = r.Action.Status
-	action["target"] = r.Action.Target
-	action["type"] = r.Action.Type
-	actions = append(actions, action)
-
-	d.Set("weight", r.Weight)
-	d.Set("display_name", r.DisplayName)
-	d.Set("frontend_id", r.FrontendID)
-	d.Set("action", actions)
+	// set resource attributes
+	for k, v := range r.ToMap() {
+		if k != "route_id" {
+			d.Set(k, v)
+		}
+	}
 
 	return nil
 }
 
-func resourceIPLoadbalancingRouteHTTPUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteUpdate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	service := d.Get("service_name").(string)
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s", service, d.Id())
+	serviceName := d.Get("service_name").(string)
+	route := (&IPLoadbalancingHttpRouteOpts{}).FromResource(d)
 
-	action := &IPLoadbalancingRouteHTTPAction{}
-	actionSet := d.Get("action").([]interface{})[0].(map[string]interface{})
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s",
+		url.PathEscape(serviceName),
+		url.PathEscape(d.Id()),
+	)
 
-	action.Status = actionSet["status"].(int)
-	action.Target = actionSet["target"].(string)
-	action.Type = actionSet["type"].(string)
-
-	route := &IPLoadbalancingRouteHTTP{
-		Action:      action,
-		DisplayName: d.Get("display_name").(string),
-		FrontendID:  d.Get("frontend_id").(int),
-		Weight:      d.Get("weight").(int),
+	if err := config.OVHClient.Put(endpoint, route, nil); err != nil {
+		return fmt.Errorf("calling PUT %s:\n\t %s", endpoint, err.Error())
 	}
 
-	err := config.OVHClient.Put(endpoint, route, nil)
-	if err != nil {
-		return fmt.Errorf("calling %s:\n\t %s", endpoint, err.Error())
-	}
-
-	return resourceIPLoadbalancingRouteHTTPRead(d, meta)
+	return resourceIPLoadbalancingHttpRouteRead(d, meta)
 }
 
-func resourceIPLoadbalancingRouteHTTPDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
+	serviceName := d.Get("service_name").(string)
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s",
+		url.PathEscape(serviceName),
+		url.PathEscape(d.Id()),
+	)
 
-	service := d.Get("service_name").(string)
-	r := &IPLoadbalancingRouteHTTP{}
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s", service, d.Id())
-
-	err := config.OVHClient.Delete(endpoint, &r)
-	if err != nil {
-		return fmt.Errorf("Error calling %s: %s \n", endpoint, err.Error())
+	if err := config.OVHClient.Delete(endpoint, nil); err != nil {
+		return helpers.CheckDeleted(d, err, endpoint)
 	}
-
 	d.SetId("")
 	return nil
 }

@@ -2,18 +2,19 @@ package ovh
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ovh/terraform-provider-ovh/ovh/helpers"
 )
 
-func resourceIPLoadbalancingRouteHTTPRule() *schema.Resource {
+func resourceIPLoadbalancingHttpRouteRule() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceIPLoadbalancingRouteHTTPRuleCreate,
-		Read:   resourceIPLoadbalancingRouteHTTPRuleRead,
-		Update: resourceIPLoadbalancingRouteHTTPRuleUpdate,
-		Delete: resourceIPLoadbalancingRouteHTTPRuleDelete,
+		Create: resourceIPLoadbalancingHttpRouteRuleCreate,
+		Read:   resourceIPLoadbalancingHttpRouteRuleRead,
+		Update: resourceIPLoadbalancingHttpRouteRuleUpdate,
+		Delete: resourceIPLoadbalancingHttpRouteRuleDelete,
 		Importer: &schema.ResourceImporter{
 			State: resourceIpLoadbalancingHttpRouteRuleImportState,
 		},
@@ -51,6 +52,7 @@ func resourceIPLoadbalancingRouteHTTPRule() *schema.Resource {
 			"negate": {
 				Type:     schema.TypeBool,
 				Optional: true,
+				Computed: true,
 			},
 			"pattern": {
 				Type:     schema.TypeString,
@@ -83,91 +85,84 @@ func resourceIpLoadbalancingHttpRouteRuleImportState(d *schema.ResourceData, met
 	return results, nil
 }
 
-func resourceIPLoadbalancingRouteHTTPRuleCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
-	rule := &IPLoadbalancingRouteHTTPRule{
-		DisplayName: d.Get("display_name").(string),
-		Field:       d.Get("field").(string),
-		Match:       d.Get("match").(string),
-		Negate:      d.Get("negate").(bool),
-		Pattern:     d.Get("pattern").(string),
-		SubField:    d.Get("sub_field").(string),
-	}
+	rule := (&IPLoadbalancingRouteRuleOpts{}).FromResource(d)
 
-	service := d.Get("service_name").(string)
-	routeID := d.Get("route_id").(string)
-	resp := &IPLoadbalancingRouteHTTPRule{}
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule", service, routeID)
+	serviceName := d.Get("service_name").(string)
+	routeId := d.Get("route_id").(string)
+	resp := &IPLoadbalancingRouteRule{}
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule",
+		url.PathEscape(serviceName),
+		url.PathEscape(routeId),
+	)
 
-	err := config.OVHClient.Post(endpoint, rule, resp)
-	if err != nil {
+	if err := config.OVHClient.Post(endpoint, rule, resp); err != nil {
 		return fmt.Errorf("calling POST %s :\n\t %s", endpoint, err.Error())
 	}
 
-	d.SetId(fmt.Sprintf("%d", resp.RuleID))
+	d.SetId(fmt.Sprintf("%d", resp.RuleId))
 
-	return resourceIPLoadbalancingRouteHTTPRuleRead(d, meta)
+	return resourceIPLoadbalancingHttpRouteRuleRead(d, meta)
 }
 
-func resourceIPLoadbalancingRouteHTTPRuleRead(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteRuleRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	service := d.Get("service_name").(string)
-	routeID := d.Get("route_id").(string)
-	r := &IPLoadbalancingRouteHTTPRule{}
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule/%s", service, routeID, d.Id())
+	serviceName := d.Get("service_name").(string)
+	routeId := d.Get("route_id").(string)
+	r := &IPLoadbalancingRouteRule{}
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule/%s",
+		url.PathEscape(serviceName),
+		url.PathEscape(routeId),
+		url.PathEscape(d.Id()),
+	)
 
 	if err := config.OVHClient.Get(endpoint, r); err != nil {
 		return helpers.CheckDeleted(d, err, endpoint)
 	}
 
-	d.Set("display_name", r.DisplayName)
-	d.Set("field", r.Field)
-	d.Set("match", r.Match)
-	d.Set("negate", r.Negate)
-	d.Set("pattern", r.Pattern)
-	d.Set("sub_field", r.SubField)
+	// set resource attributes
+	for k, v := range r.ToMap() {
+		if k != "rule_id" {
+			d.Set(k, v)
+		}
+	}
 
 	return nil
 }
 
-func resourceIPLoadbalancingRouteHTTPRuleUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteRuleUpdate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	service := d.Get("service_name").(string)
-	routeID := d.Get("route_id").(string)
+	rule := (&IPLoadbalancingRouteRuleOpts{}).FromResource(d)
+	serviceName := d.Get("service_name").(string)
+	routeId := d.Get("route_id").(string)
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule/%s",
+		url.PathEscape(serviceName),
+		url.PathEscape(routeId),
+		url.PathEscape(d.Id()),
+	)
 
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule/%s", service, routeID, d.Id())
-
-	rule := &IPLoadbalancingRouteHTTPRule{
-		DisplayName: d.Get("display_name").(string),
-		Field:       d.Get("field").(string),
-		Match:       d.Get("match").(string),
-		Negate:      d.Get("negate").(bool),
-		Pattern:     d.Get("pattern").(string),
-		SubField:    d.Get("sub_field").(string),
+	if err := config.OVHClient.Put(endpoint, rule, nil); err != nil {
+		return fmt.Errorf("calling PUT %s:\n\t %s", endpoint, err.Error())
 	}
 
-	err := config.OVHClient.Put(endpoint, rule, nil)
-	if err != nil {
-		return fmt.Errorf("calling %s:\n\t %s", endpoint, err.Error())
-	}
-
-	return resourceIPLoadbalancingRouteHTTPRuleRead(d, meta)
+	return resourceIPLoadbalancingHttpRouteRuleRead(d, meta)
 }
 
-func resourceIPLoadbalancingRouteHTTPRuleDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceIPLoadbalancingHttpRouteRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
+	serviceName := d.Get("service_name").(string)
+	routeId := d.Get("route_id").(string)
+	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule/%s",
+		url.PathEscape(serviceName),
+		url.PathEscape(routeId),
+		url.PathEscape(d.Id()),
+	)
 
-	service := d.Get("service_name").(string)
-	routeID := d.Get("route_id").(string)
-
-	r := &IPLoadbalancingRouteHTTPRule{}
-	endpoint := fmt.Sprintf("/ipLoadbalancing/%s/http/route/%s/rule/%s", service, routeID, d.Id())
-
-	err := config.OVHClient.Delete(endpoint, &r)
-	if err != nil {
-		return fmt.Errorf("Error calling %s: %s \n", endpoint, err.Error())
+	if err := config.OVHClient.Delete(endpoint, nil); err != nil {
+		return helpers.CheckDeleted(d, err, endpoint)
 	}
-
+	d.SetId("")
 	return nil
 }
