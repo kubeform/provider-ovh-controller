@@ -1297,7 +1297,7 @@ kmodules.xyz/resource-metrics/api
 ## explicit
 kubeform.dev/apimachinery/api/v1alpha1
 kubeform.dev/apimachinery/pkg/util
-# kubeform.dev/provider-ovh-api v0.3.1-0.20211028192330-a4667632afba
+# kubeform.dev/provider-ovh-api v0.4.0
 ## explicit
 kubeform.dev/provider-ovh-api/api/provider
 kubeform.dev/provider-ovh-api/apis/cloud
